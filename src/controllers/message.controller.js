@@ -7,7 +7,9 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 export const getUsersForSidebar = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
+    const filteredUsers = await User.find({
+      _id: { $ne: loggedInUserId },
+    }).select("-password");
 
     res.status(200).json(filteredUsers);
   } catch (error) {
@@ -37,14 +39,20 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const text = req.body.text;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
     let imageUrl;
-    if (image) {
-      // Upload base64 image to cloudinary
-      const uploadResponse = await cloudinary.uploader.upload(image);
+    if (req.file) {
+      // Upload file từ buffer
+      const b64 = Buffer.from(req.file.buffer).toString("base64");
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+      const uploadResponse = await cloudinary.uploader.upload(dataURI);
+      imageUrl = uploadResponse.secure_url;
+    } else if (req.body.image && req.body.image.startsWith("data:")) {
+      // Upload base64 string
+      const uploadResponse = await cloudinary.uploader.upload(req.body.image);
       imageUrl = uploadResponse.secure_url;
     }
 
